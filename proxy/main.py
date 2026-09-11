@@ -2,8 +2,22 @@ from flask import Flask, request, jsonify
 import requests
 import os
 import policy_client
+import opa_client
 
 app = Flask(__name__)
+
+# Phase 3: which engine actually decides. Defaults to opa now that it
+# exists; set POLICY_ENGINE=yaml to fall back to the Phase 2 engine for
+# comparison. Both stay in the codebase -- this is what makes the
+# regression test meaningful, since it can call either one directly.
+POLICY_ENGINE = os.environ.get("POLICY_ENGINE", "opa")
+
+
+def decide(role, tool, resource):
+    if POLICY_ENGINE == "yaml":
+        return policy_client.decide(role, tool, resource)
+    return opa_client.decide(role, tool, resource)
+
 
 # Which argument on each tool call counts as its "resource" for policy
 # matching. Tools not listed here have no resource concept (resource="").
@@ -64,19 +78,20 @@ def call():
     resource_key = RESOURCE_ARG.get(tool)
     resource = arguments.get(resource_key, "") if resource_key else ""
 
-    decision = policy_client.decide(role, tool, resource)
+    decision = decide(role, tool, resource)
 
     if decision == "deny":
-        return jsonify({"decision": "deny", "error": "blocked by policy"}), 403
+        return jsonify({"decision": "deny", "engine": POLICY_ENGINE, "error": "blocked by policy"}), 403
 
     if decision == "require_approval":
-        return jsonify({"decision": "require_approval",
+        return jsonify({"decision": "require_approval", "engine": POLICY_ENGINE,
                          "error": "blocked pending human approval (not yet implemented)"}), 202
 
     # decision == "allow" -- forward unchanged, same as Phase 1.
     downstream_resp = requests.post(f"{base_url}/call", json=body, timeout=10)
     resp_body = downstream_resp.json()
     resp_body["decision"] = "allow"
+    resp_body["engine"] = POLICY_ENGINE
     return jsonify(resp_body), downstream_resp.status_code
 
 
