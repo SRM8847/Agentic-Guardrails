@@ -1,0 +1,44 @@
+services:
+  splunk:
+    image: splunk/splunk:latest
+    mem_limit: 4g
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com   # required on Splunk 10.x+
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}                        # required or the admin user won't provision
+      - SPLUNK_HEC_TOKEN=${SPLUNK_HEC_TOKEN}
+    volumes:
+      - splunk-data:/opt/splunk/var
+
+  opa:
+    image: openpolicyagent/opa
+    mem_limit: 256m
+    command: ["run", "--server", "/policy"]
+    volumes:
+      - ./policy/rego:/policy   # includes rules_data.json (generated) alongside the .rego files
+
+  proxy:
+    build: ./proxy
+    mem_limit: 512m
+    depends_on: [opa, splunk]
+
+  fs_server:
+    build: ./tools/fs_server
+    mem_limit: 256m
+
+  email_mock:
+    build: ./tools/email_mock
+    mem_limit: 256m
+
+  db_mock:
+    build: ./tools/db_mock
+    mem_limit: 256m
+
+  agent:
+    build: ./agent
+    mem_limit: 512m
+    depends_on: [proxy]
+
+volumes:
+  splunk-data:
+

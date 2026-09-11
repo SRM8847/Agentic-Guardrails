@@ -1,0 +1,15 @@
+rules:
+  - id: allow-read-only-default
+    role: any
+    tool: [fs_read, db_query_nonpii, fetch_url]
+    decision: allow
+  - id: deny-external-reach-default
+    role: research_agent
+    tool: [send_email, s3_put_object]
+    decision: deny
+  - id: require-approval-sensitive-write
+    role: any
+    tool: [fs_write]
+    resource: "customers.*"
+    decision: require_approval
+

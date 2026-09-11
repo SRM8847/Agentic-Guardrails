@@ -1,0 +1,13 @@
+# secrets -- never commit
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# logs from the run_phase*.sh scripts
+*.log
+
+# OS noise
+.DS_Store
