@@ -8,6 +8,7 @@ downstream tool's own counter proves it never actually ran.
 import json
 import sys
 import urllib.request
+import uuid
 
 PROXY = "http://localhost:8000"
 EMAIL_MOCK = "http://localhost:8002"
@@ -25,8 +26,18 @@ def http_json(url, method="GET", body=None):
 
 
 def call(tool, arguments, role="research_agent"):
+    # Fresh session_id every call: this test exists to check role/tool/
+    # resource matching in isolation, not session accumulation (that's
+    # test_phase4_trifecta.py's job specifically). Once Phase 4 added
+    # session tracking to the proxy, reusing one session_id across all
+    # six checks here started silently accumulating trifecta signals
+    # between unrelated checks -- e.g. check 4's write to customers.99
+    # plus check 2's send_email pushed the shared session to "partial"
+    # by check 5, which then got the trifecta override instead of the
+    # plain role-based answer this test is actually trying to verify.
     return http_json(f"{PROXY}/call", method="POST",
-                      body={"tool": tool, "arguments": arguments, "role": role})
+                      body={"tool": tool, "arguments": arguments, "role": role,
+                            "session_id": str(uuid.uuid4())})
 
 
 checks = []

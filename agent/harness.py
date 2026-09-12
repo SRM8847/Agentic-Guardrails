@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import urllib.request
+import uuid
 
 # Phase 1: if PROXY_URL is set, the agent knows about exactly one
 # endpoint -- the proxy -- and has no configuration path to the
@@ -40,6 +41,10 @@ DEFAULT_MODEL = os.environ.get("AGENT_MODEL", "claude-haiku-4-5-20251001")
 # matches on it. Matches rules_v1.yaml's "research_agent" so the
 # deny-external-reach-default rule actually has something to bite on.
 AGENT_ROLE = os.environ.get("AGENT_ROLE", "research_agent")
+
+# Phase 4: a fresh session_id per run, so trifecta signals don't leak
+# between separate invocations of the harness.
+SESSION_ID = os.environ.get("SESSION_ID", str(uuid.uuid4()))
 
 
 def http_json(url, method="GET", body=None):
@@ -84,7 +89,8 @@ def call_tool(tool_to_server, tool_name, arguments):
     if base_url is None:
         return {"error": f"no server hosts tool '{tool_name}'"}
     return http_json(f"{base_url}/call", method="POST",
-                      body={"tool": tool_name, "arguments": arguments, "role": AGENT_ROLE})
+                      body={"tool": tool_name, "arguments": arguments,
+                            "role": AGENT_ROLE, "session_id": SESSION_ID})
 
 
 def run_real(task, max_turns=8):

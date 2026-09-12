@@ -9,11 +9,12 @@ import requests
 OPA_URL = os.environ.get("OPA_URL", "http://localhost:8181")
 
 
-def decide(role, tool, resource=""):
+def decide(role, tool, resource="", trifecta_state="none"):
     try:
         resp = requests.post(
             f"{OPA_URL}/v1/data/guardrail/decision",
-            json={"input": {"role": role, "tool": tool, "resource": resource}},
+            json={"input": {"role": role, "tool": tool, "resource": resource,
+                             "trifecta_state": trifecta_state}},
             timeout=5,
         )
         resp.raise_for_status()
