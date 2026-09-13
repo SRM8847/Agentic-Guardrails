@@ -4,8 +4,16 @@ import os
 import policy_client
 import opa_client
 import session_state
+import sts_helper
 
 app = Flask(__name__)
+
+# Phase 5: when true, send_email and s3_put_object are executed for real
+# against AWS (via sts_helper, freshly STS-scoped per call) instead of
+# being forwarded to the local mock servers. Off by default so every
+# earlier phase's run_phaseN.sh keeps working with zero AWS dependency.
+USE_REAL_AWS = os.environ.get("USE_REAL_AWS", "false").lower() == "true"
+SES_TO_ADDRESS = os.environ.get("SES_TO_ADDRESS", "")
 
 # Phase 3: which engine actually decides. Defaults to opa now that it
 # exists; set POLICY_ENGINE=yaml to fall back to the Phase 2 engine for
@@ -126,7 +134,39 @@ def call():
                          "trifecta_state": prior_trifecta,
                          "error": "blocked pending human approval (not yet implemented)"}), 202
 
-    # decision == "allow" -- forward unchanged, same as Phase 1.
+    # decision == "allow" from here on.
+    if USE_REAL_AWS and tool in ("send_email", "s3_put_object"):
+        # Phase 5: this is the only place sts_helper is ever called, and
+        # only after "allow" has already been decided above -- a denied
+        # or require_approval call returns before reaching this line,
+        # which is what makes "denied calls never attempt AssumeRole"
+        # true by control flow, not by convention.
+        try:
+            if tool == "send_email":
+                result = sts_helper.send_email(
+                    arguments.get("to", SES_TO_ADDRESS),
+                    arguments.get("subject", ""),
+                    arguments.get("body", ""),
+                )
+            else:  # s3_put_object
+                result = sts_helper.put_object(
+                    arguments.get("key", ""),
+                    arguments.get("content", ""),
+                )
+            result["decision"] = "allow"
+            result["engine"] = POLICY_ENGINE
+            result["trifecta_state"] = prior_trifecta
+            result["backend"] = "real_aws"
+            return jsonify(result), 200
+        except Exception as e:
+            # A real AWS-side rejection (e.g. IAM denies it) surfaces
+            # here as a 502, distinct from a 403 policy denial -- this
+            # call was app-layer allowed but the cloud itself said no.
+            return jsonify({"decision": "allow", "engine": POLICY_ENGINE,
+                             "trifecta_state": prior_trifecta,
+                             "error": f"AWS rejected the call: {e}"}), 502
+
+    # Local-mock path, unchanged since Phase 1.
     downstream_resp = requests.post(f"{base_url}/call", json=body, timeout=10)
     resp_body = downstream_resp.json()
     resp_body["decision"] = "allow"

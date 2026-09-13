@@ -27,6 +27,15 @@
       ],
       "resource": "customers.*",
       "decision": "require_approval"
+    },
+    {
+      "id": "allow-external-reach-trusted",
+      "role": "trusted_agent",
+      "tool": [
+        "send_email",
+        "s3_put_object"
+      ],
+      "decision": "allow"
     }
   ]
 }
