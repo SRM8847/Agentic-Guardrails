@@ -93,5 +93,3 @@ Two pieces from the original design were consciously left out, rather than quiet
 
 - **Audit logging** (a Splunk integration was planned but never built). Every decision this system makes is fully explainable in the moment, but nothing durable is written down for later review. That's a real gap for a production system, and a natural next step.
 - **Running in Docker.** Everything here runs as plain processes for simplicity while building and testing. A `docker-compose.yml` exists and is shaped correctly for it, but it's never actually been used.
-
-Both were deliberate scope calls, made explicitly rather than discovered by someone else later.
