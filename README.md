@@ -95,7 +95,3 @@ Two pieces from the original design were consciously left out, rather than quiet
 - **Running in Docker.** Everything here runs as plain processes for simplicity while building and testing. A `docker-compose.yml` exists and is shaped correctly for it, but it's never actually been used.
 
 Both were deliberate scope calls, made explicitly rather than discovered by someone else later.
-
-## A note on how this was built
-
-This was built phase by phase with Claude, with a strict rule at every step: nothing gets marked "done" from writing code alone - it only counts once it's actually been run and the real output has been checked. That discipline is what surfaced most of the interesting bugs along the way (a policy file that was never actually being loaded, a test that silently broke once session-tracking was added, a rule table that could never actually grant one specific permission to anyone). Each phase has a companion write-up explaining what was built, what broke, and why the fix works - kept outside this repo as a personal build log.
